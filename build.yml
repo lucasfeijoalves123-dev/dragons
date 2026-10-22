@@ -1,0 +1,56 @@
+
+name: Build Skyrim Mod
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Download CommonLibSSE-NG
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force extern | Out-Null
+          git clone https://github.com/CharmedBaryon/CommonLibSSE-NG extern/CommonLibSSE-NG
+          git -C extern/CommonLibSSE-NG checkout b93280e832f263dbef44e44cbe2936622a02f91a
+
+      - name: Setup vcpkg
+        shell: pwsh
+        run: |
+          git clone https://github.com/microsoft/vcpkg.git
+          .\vcpkg\bootstrap-vcpkg.bat
+
+      - name: Configure CMake
+        shell: pwsh
+        run: |
+          cmake -B build -S . `
+            -DCMAKE_TOOLCHAIN_FILE="$env:GITHUB_WORKSPACE/vcpkg/scripts/buildsystems/vcpkg.cmake" `
+            -DVCPKG_TARGET_TRIPLET=x64-windows-static-md `
+            -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --config Release --parallel
+
+      - name: Package mod
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force package/SKSE/Plugins | Out-Null
+          Copy-Item build/Release/DragoesGrandes.dll package/SKSE/Plugins/
+          Copy-Item data/SKSE/Plugins/DragoesGrandes.ini package/SKSE/Plugins/
+          Compress-Archive -Path package/* -DestinationPath DragoesGrandes-1.0.0.zip
+
+      - name: Upload compiled mod
+        uses: actions/upload-artifact@v4
+        with:
+          name: DragoesGrandes-1.0.0
+          path: DragoesGrandes-1.0.0.zip
