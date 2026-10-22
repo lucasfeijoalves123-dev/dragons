@@ -24,6 +24,26 @@ jobs:
           git clone https://github.com/CharmedBaryon/CommonLibSSE-NG extern/CommonLibSSE-NG
           git -C extern/CommonLibSSE-NG checkout b93280e832f263dbef44e44cbe2936622a02f91a
 
+     
+      - name: Fix missing standard headers
+        shell: pwsh
+        run: |
+          $header = "extern/CommonLibSSE-NG/include/REL/Version.h"
+          $content = Get-Content $header -Raw
+          $prefix = @'
+          #include <array>
+          #include <compare>
+          #include <cstddef>
+          #include <cstdint>
+          #include <optional>
+          #include <stdexcept>
+          #include <string>
+          #include <string_view>
+          using std::uint8_t;
+          using namespace std::literals;
+          '@
+          Set-Content -Path $header -Value ($prefix + "`n" + $content)
+
       - name: Setup vcpkg
         shell: pwsh
         run: |
